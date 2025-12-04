@@ -20,10 +20,18 @@ func (h *NotificationHandler) Send(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid request body")
 	}
-	return c.JSON(h.svc.Send(c.Context(), req))
+	resp, err := h.svc.Send(c.Context(), req)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+	return c.JSON(resp)
 }
 
 func (h *NotificationHandler) Get(c *fiber.Ctx) error {
 	id := c.Params("id")
-	return c.JSON(h.svc.Get(c.Context(), id))
+	resp, err := h.svc.Get(c.Context(), id)
+	if err != nil {
+		return fiber.NewError(fiber.StatusNotFound, err.Error())
+	}
+	return c.JSON(resp)
 }
