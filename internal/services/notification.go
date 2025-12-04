@@ -44,6 +44,39 @@ func (s *NotificationService) Get(ctx context.Context, id string) (dto.Notificat
 	return dto.NotificationResponse{
 		ID:        notif.ID,
 		Status:    string(notif.Status),
-        SentAt:    sentAt,
-	}, nil
-}
+        		SentAt:    sentAt,
+        	}, nil
+        }
+        
+        func (s *NotificationService) ListByUserID(ctx context.Context, userID string) (dto.NotificationListResponse, error) {
+        	notifs, err := s.repo.ListByUserID(ctx, userID)
+        	if err != nil {
+        		return dto.NotificationListResponse{}, err
+        	}
+        	return toNotificationListResponse(notifs), nil
+        }
+        
+        func (s *NotificationService) ListByMerchantID(ctx context.Context, merchantID string) (dto.NotificationListResponse, error) {
+        	notifs, err := s.repo.ListByMerchantID(ctx, merchantID)
+        	if err != nil {
+        		return dto.NotificationListResponse{}, err
+        	}
+        	return toNotificationListResponse(notifs), nil
+        }
+        
+        func toNotificationListResponse(notifs []*models.Notification) dto.NotificationListResponse {
+        	var resp dto.NotificationListResponse
+        	for _, notif := range notifs {
+        		sentAt := ""
+        		if notif.SentAt != nil {
+        			sentAt = notif.SentAt.Format(time.RFC3339)
+        		}
+        		resp.Notifications = append(resp.Notifications, dto.NotificationResponse{
+        			ID:     notif.ID,
+        			Status: string(notif.Status),
+        			SentAt: sentAt,
+        		})
+        	}
+        	return resp
+        }
+        

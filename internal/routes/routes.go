@@ -25,4 +25,6 @@ func Register(app *fiber.App, serviceName string) {
 
 	app.Post("/notifications", notifHandler.Send)
 	app.Get("/notifications/:id", notifHandler.Get)
+	app.Get("/notifications/user/:userID", notifHandler.ListByUserID)
+	app.Get("/notifications/merchant/:merchantID", notifHandler.ListByMerchantID)
 }

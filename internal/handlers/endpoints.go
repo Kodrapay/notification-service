@@ -35,3 +35,21 @@ func (h *NotificationHandler) Get(c *fiber.Ctx) error {
 	}
 	return c.JSON(resp)
 }
+
+func (h *NotificationHandler) ListByUserID(c *fiber.Ctx) error {
+	userID := c.Params("userID")
+	resp, err := h.svc.ListByUserID(c.Context(), userID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+	return c.JSON(resp)
+}
+
+func (h *NotificationHandler) ListByMerchantID(c *fiber.Ctx) error {
+	merchantID := c.Params("merchantID")
+	resp, err := h.svc.ListByMerchantID(c.Context(), merchantID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+	return c.JSON(resp)
+}

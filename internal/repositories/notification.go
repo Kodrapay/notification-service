@@ -303,3 +303,77 @@ func (r *NotificationPreferencesRepository) Update(
 
 	return nil
 }
+
+// ListByUserID retrieves all notifications for a specific user
+func (r *NotificationRepository) ListByUserID(ctx context.Context, userID string) ([]*models.Notification, error) {
+	query := `
+		SELECT id, merchant_id, user_id, type, channel, recipient,
+		       subject, message, template_name, template_data,
+		       status, sent_at, delivered_at, error_message,
+		       retry_count, metadata, created_at
+		FROM notifications
+		WHERE user_id = $1
+		ORDER BY created_at DESC
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list notifications by user_id: %w", err)
+	}
+	defer rows.Close()
+
+	return scanNotifications(rows)
+}
+
+// ListByMerchantID retrieves all notifications for a specific merchant
+func (r *NotificationRepository) ListByMerchantID(ctx context.Context, merchantID string) ([]*models.Notification, error) {
+	query := `
+		SELECT id, merchant_id, user_id, type, channel, recipient,
+		       subject, message, template_name, template_data,
+		       status, sent_at, delivered_at, error_message,
+		       retry_count, metadata, created_at
+		FROM notifications
+		WHERE merchant_id = $1
+		ORDER BY created_at DESC
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, merchantID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list notifications by merchant_id: %w", err)
+	}
+	defer rows.Close()
+
+	return scanNotifications(rows)
+}
+
+// scanNotifications is a helper to scan multiple notification rows
+func scanNotifications(rows *sql.Rows) ([]*models.Notification, error) {
+	var notifications []*models.Notification
+	for rows.Next() {
+		var notif models.Notification
+		var templateDataJSON, metadataJSON []byte
+
+		err := rows.Scan(
+			&notif.ID, &notif.MerchantID, &notif.UserID, &notif.Type,
+			&notif.Channel, &notif.Recipient, &notif.Subject, &notif.Message,
+			&notif.TemplateName, &templateDataJSON, &notif.Status,
+			&notif.SentAt, &notif.DeliveredAt, &notif.ErrorMessage,
+			&notif.RetryCount, &metadataJSON, &notif.CreatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan notification: %w", err)
+		}
+
+		if len(templateDataJSON) > 0 {
+			json.Unmarshal(templateDataJSON, &notif.TemplateData)
+		}
+
+		if len(metadataJSON) > 0 {
+			json.Unmarshal(metadataJSON, &notif.Metadata)
+		}
+
+		notifications = append(notifications, &notif)
+	}
+
+	return notifications, nil
+}

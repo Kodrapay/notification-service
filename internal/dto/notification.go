@@ -12,3 +12,7 @@ type NotificationResponse struct {
 	Status string `json:"status"`
 	SentAt string `json:"sent_at,omitempty"`
 }
+
+type NotificationListResponse struct {
+	Notifications []NotificationResponse `json:"notifications"`
+}
