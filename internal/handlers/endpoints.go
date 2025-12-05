@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 
 	"github.com/kodra-pay/notification-service/internal/dto"
 	"github.com/kodra-pay/notification-service/internal/services"
@@ -38,6 +39,9 @@ func (h *NotificationHandler) Get(c *fiber.Ctx) error {
 
 func (h *NotificationHandler) ListByUserID(c *fiber.Ctx) error {
 	userID := c.Params("userID")
+	if _, err := uuid.Parse(userID); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "user_id must be a valid uuid")
+	}
 	resp, err := h.svc.ListByUserID(c.Context(), userID)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
@@ -47,6 +51,9 @@ func (h *NotificationHandler) ListByUserID(c *fiber.Ctx) error {
 
 func (h *NotificationHandler) ListByMerchantID(c *fiber.Ctx) error {
 	merchantID := c.Params("merchantID")
+	if _, err := uuid.Parse(merchantID); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "merchant_id must be a valid uuid")
+	}
 	resp, err := h.svc.ListByMerchantID(c.Context(), merchantID)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
