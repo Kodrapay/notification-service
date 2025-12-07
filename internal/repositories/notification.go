@@ -44,13 +44,25 @@ func (r *NotificationRepository) Create(ctx context.Context, notif *models.Notif
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
 		RETURNING id, created_at
 	`
+	var merchantID sql.NullInt32
+	if notif.MerchantID != nil {
+		merchantID.Int32 = int32(*notif.MerchantID)
+		merchantID.Valid = true
+	}
+	var userID sql.NullInt32
+	if notif.UserID != nil {
+		userID.Int32 = int32(*notif.UserID)
+		userID.Valid = true
+	}
 
 	err := r.db.QueryRowContext(
 		ctx, query,
-		notif.MerchantID, notif.UserID, notif.Type, notif.Channel,
+		merchantID, // *int converted to sql.NullInt32
+		userID,     // *int converted to sql.NullInt32
+		notif.Type, notif.Channel,
 		notif.Recipient, notif.Subject, notif.Message, notif.TemplateName,
 		templateDataJSON, notif.Status, metadataJSON,
-	).Scan(&notif.ID, &notif.CreatedAt)
+	).Scan(&notif.ID, &notif.CreatedAt) // notif.ID is int
 
 	if err != nil {
 		return fmt.Errorf("failed to create notification: %w", err)
@@ -60,7 +72,7 @@ func (r *NotificationRepository) Create(ctx context.Context, notif *models.Notif
 }
 
 // GetByID retrieves a notification by ID
-func (r *NotificationRepository) GetByID(ctx context.Context, id string) (*models.Notification, error) {
+func (r *NotificationRepository) GetByID(ctx context.Context, id int) (*models.Notification, error) {
 	query := `
 		SELECT id, merchant_id, user_id, type, channel, recipient,
 		       subject, message, template_name, template_data,
@@ -72,9 +84,14 @@ func (r *NotificationRepository) GetByID(ctx context.Context, id string) (*model
 
 	var notif models.Notification
 	var templateDataJSON, metadataJSON []byte
+	var merchantID sql.NullInt32
+	var userID sql.NullInt32
 
-	err := r.db.QueryRowContext(ctx, query, id).Scan(
-		&notif.ID, &notif.MerchantID, &notif.UserID, &notif.Type,
+	err := r.db.QueryRowContext(ctx, query, id).Scan( // id is int
+		&notif.ID,
+		&merchantID, // Scan into sql.NullInt32
+		&userID,     // Scan into sql.NullInt32
+		&notif.Type,
 		&notif.Channel, &notif.Recipient, &notif.Subject, &notif.Message,
 		&notif.TemplateName, &templateDataJSON, &notif.Status,
 		&notif.SentAt, &notif.DeliveredAt, &notif.ErrorMessage,
@@ -97,13 +114,22 @@ func (r *NotificationRepository) GetByID(ctx context.Context, id string) (*model
 		json.Unmarshal(metadataJSON, &notif.Metadata)
 	}
 
+	if merchantID.Valid {
+		val := int(merchantID.Int32)
+		notif.MerchantID = &val
+	}
+	if userID.Valid {
+		val := int(userID.Int32)
+		notif.UserID = &val
+	}
+
 	return &notif, nil
 }
 
 // UpdateStatus updates the notification status
 func (r *NotificationRepository) UpdateStatus(
 	ctx context.Context,
-	id string,
+	id int, // id changed to int
 	status models.NotificationStatus,
 	errorMessage *string,
 ) error {
@@ -117,7 +143,7 @@ func (r *NotificationRepository) UpdateStatus(
 		WHERE id = $1
 	`
 
-	_, err := r.db.ExecContext(ctx, query, id, status, errorMessage)
+	_, err := r.db.ExecContext(ctx, query, id, status, errorMessage) // id is int
 	if err != nil {
 		return fmt.Errorf("failed to update notification status: %w", err)
 	}
@@ -144,33 +170,7 @@ func (r *NotificationRepository) ListPending(ctx context.Context, limit int) ([]
 	}
 	defer rows.Close()
 
-	var notifications []*models.Notification
-	for rows.Next() {
-		var notif models.Notification
-		var templateDataJSON, metadataJSON []byte
-
-		err := rows.Scan(
-			&notif.ID, &notif.MerchantID, &notif.UserID, &notif.Type,
-			&notif.Channel, &notif.Recipient, &notif.Subject, &notif.Message,
-			&notif.TemplateName, &templateDataJSON, &notif.Status,
-			&notif.RetryCount, &metadataJSON, &notif.CreatedAt,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan notification: %w", err)
-		}
-
-		if len(templateDataJSON) > 0 {
-			json.Unmarshal(templateDataJSON, &notif.TemplateData)
-		}
-
-		if len(metadataJSON) > 0 {
-			json.Unmarshal(metadataJSON, &notif.Metadata)
-		}
-
-		notifications = append(notifications, &notif)
-	}
-
-	return notifications, nil
+	return scanNotifications(rows) // Delegate scanning to helper
 }
 
 // NotificationPreferencesRepository handles notification preferences
@@ -185,7 +185,7 @@ func NewNotificationPreferencesRepository(db *sql.DB) *NotificationPreferencesRe
 // GetByMerchantID retrieves notification preferences for a merchant
 func (r *NotificationPreferencesRepository) GetByMerchantID(
 	ctx context.Context,
-	merchantID string,
+	merchantID int, // merchantID changed to int
 ) (*models.NotificationPreferences, error) {
 	query := `
 		SELECT id, merchant_id, email_enabled, sms_enabled, push_enabled,
@@ -198,8 +198,9 @@ func (r *NotificationPreferencesRepository) GetByMerchantID(
 	`
 
 	var prefs models.NotificationPreferences
-	err := r.db.QueryRowContext(ctx, query, merchantID).Scan(
-		&prefs.ID, &prefs.MerchantID, &prefs.EmailEnabled, &prefs.SMSEnabled,
+	err := r.db.QueryRowContext(ctx, query, merchantID).Scan( // merchantID is int
+		&prefs.ID, &prefs.MerchantID, // int, int
+		&prefs.EmailEnabled, &prefs.SMSEnabled,
 		&prefs.PushEnabled, &prefs.TransactionNotifications,
 		&prefs.PayoutNotifications, &prefs.SettlementNotifications,
 		&prefs.SecurityNotifications, &prefs.MarketingNotifications,
@@ -222,7 +223,7 @@ func (r *NotificationPreferencesRepository) GetByMerchantID(
 // CreateDefault creates default notification preferences for a merchant
 func (r *NotificationPreferencesRepository) CreateDefault(
 	ctx context.Context,
-	merchantID string,
+	merchantID int, // merchantID changed to int
 ) (*models.NotificationPreferences, error) {
 	query := `
 		INSERT INTO notification_preferences (
@@ -238,8 +239,9 @@ func (r *NotificationPreferencesRepository) CreateDefault(
 	`
 
 	var prefs models.NotificationPreferences
-	err := r.db.QueryRowContext(ctx, query, merchantID).Scan(
-		&prefs.ID, &prefs.MerchantID, &prefs.EmailEnabled, &prefs.SMSEnabled,
+	err := r.db.QueryRowContext(ctx, query, merchantID).Scan( // merchantID is int
+		&prefs.ID, &prefs.MerchantID, // int, int
+		&prefs.EmailEnabled, &prefs.SMSEnabled,
 		&prefs.PushEnabled, &prefs.TransactionNotifications,
 		&prefs.PayoutNotifications, &prefs.SettlementNotifications,
 		&prefs.SecurityNotifications, &prefs.MarketingNotifications,
@@ -298,14 +300,14 @@ func (r *NotificationPreferencesRepository) Update(
 	}
 
 	if rows == 0 {
-		return fmt.Errorf("preferences not found for merchant: %s", prefs.MerchantID)
+		return fmt.Errorf("preferences not found for merchant: %d", prefs.MerchantID)
 	}
 
 	return nil
 }
 
 // ListByUserID retrieves all notifications for a specific user
-func (r *NotificationRepository) ListByUserID(ctx context.Context, userID string) ([]*models.Notification, error) {
+func (r *NotificationRepository) ListByUserID(ctx context.Context, userID int) ([]*models.Notification, error) { // userID changed to int
 	query := `
 		SELECT id, merchant_id, user_id, type, channel, recipient,
 		       subject, message, template_name, template_data,
@@ -316,7 +318,7 @@ func (r *NotificationRepository) ListByUserID(ctx context.Context, userID string
 		ORDER BY created_at DESC
 	`
 
-	rows, err := r.db.QueryContext(ctx, query, userID)
+	rows, err := r.db.QueryContext(ctx, query, userID) // userID is int
 	if err != nil {
 		return nil, fmt.Errorf("failed to list notifications by user_id: %w", err)
 	}
@@ -326,7 +328,7 @@ func (r *NotificationRepository) ListByUserID(ctx context.Context, userID string
 }
 
 // ListByMerchantID retrieves all notifications for a specific merchant
-func (r *NotificationRepository) ListByMerchantID(ctx context.Context, merchantID string) ([]*models.Notification, error) {
+func (r *NotificationRepository) ListByMerchantID(ctx context.Context, merchantID int) ([]*models.Notification, error) { // merchantID changed to int
 	query := `
 		SELECT id, merchant_id, user_id, type, channel, recipient,
 		       subject, message, template_name, template_data,
@@ -337,7 +339,7 @@ func (r *NotificationRepository) ListByMerchantID(ctx context.Context, merchantI
 		ORDER BY created_at DESC
 	`
 
-	rows, err := r.db.QueryContext(ctx, query, merchantID)
+	rows, err := r.db.QueryContext(ctx, query, merchantID) // merchantID is int
 	if err != nil {
 		return nil, fmt.Errorf("failed to list notifications by merchant_id: %w", err)
 	}
@@ -352,9 +354,14 @@ func scanNotifications(rows *sql.Rows) ([]*models.Notification, error) {
 	for rows.Next() {
 		var notif models.Notification
 		var templateDataJSON, metadataJSON []byte
+		var merchantID sql.NullInt32
+		var userID sql.NullInt32
 
 		err := rows.Scan(
-			&notif.ID, &notif.MerchantID, &notif.UserID, &notif.Type,
+			&notif.ID,          // int
+			&merchantID,       // Scan into sql.NullInt32
+			&userID,           // Scan into sql.NullInt32
+			&notif.Type,
 			&notif.Channel, &notif.Recipient, &notif.Subject, &notif.Message,
 			&notif.TemplateName, &templateDataJSON, &notif.Status,
 			&notif.SentAt, &notif.DeliveredAt, &notif.ErrorMessage,
@@ -370,6 +377,20 @@ func scanNotifications(rows *sql.Rows) ([]*models.Notification, error) {
 
 		if len(metadataJSON) > 0 {
 			json.Unmarshal(metadataJSON, &notif.Metadata)
+		}
+
+		// Handle nullable merchantID and userID
+		if merchantID.Valid {
+			val := int(merchantID.Int32)
+			notif.MerchantID = &val
+		} else {
+			notif.MerchantID = nil
+		}
+		if userID.Valid {
+			val := int(userID.Int32)
+			notif.UserID = &val
+		} else {
+			notif.UserID = nil
 		}
 
 		notifications = append(notifications, &notif)

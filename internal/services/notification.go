@@ -32,7 +32,7 @@ func (s *NotificationService) Send(ctx context.Context, req dto.NotificationRequ
 	return dto.NotificationResponse{ID: notif.ID, Status: string(notif.Status)}, nil
 }
 
-func (s *NotificationService) Get(ctx context.Context, id string) (dto.NotificationResponse, error) {
+func (s *NotificationService) Get(ctx context.Context, id int) (dto.NotificationResponse, error) {
 	notif, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return dto.NotificationResponse{}, fmt.Errorf("notification not found")
@@ -48,7 +48,7 @@ func (s *NotificationService) Get(ctx context.Context, id string) (dto.Notificat
         	}, nil
         }
         
-        func (s *NotificationService) ListByUserID(ctx context.Context, userID string) (dto.NotificationListResponse, error) {
+        func (s *NotificationService) ListByUserID(ctx context.Context, userID int) (dto.NotificationListResponse, error) {
         	notifs, err := s.repo.ListByUserID(ctx, userID)
         	if err != nil {
         		return dto.NotificationListResponse{}, err
@@ -56,7 +56,7 @@ func (s *NotificationService) Get(ctx context.Context, id string) (dto.Notificat
         	return toNotificationListResponse(notifs), nil
         }
         
-        func (s *NotificationService) ListByMerchantID(ctx context.Context, merchantID string) (dto.NotificationListResponse, error) {
+        func (s *NotificationService) ListByMerchantID(ctx context.Context, merchantID int) (dto.NotificationListResponse, error) {
         	notifs, err := s.repo.ListByMerchantID(ctx, merchantID)
         	if err != nil {
         		return dto.NotificationListResponse{}, err

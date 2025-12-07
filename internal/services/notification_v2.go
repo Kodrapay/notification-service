@@ -28,7 +28,7 @@ func NewNotificationServiceV2(
 func (s *NotificationServiceV2) Send(ctx context.Context, notif *models.Notification) error {
 	// Get merchant's notification preferences
 	if notif.MerchantID != nil {
-		prefs, err := s.prefsRepo.GetByMerchantID(ctx, *notif.MerchantID)
+		prefs, err := s.prefsRepo.GetByMerchantID(ctx, *notif.MerchantID) // *int
 		if err != nil {
 			log.Printf("Failed to get notification preferences: %v", err)
 			// Continue anyway - use defaults
@@ -76,18 +76,22 @@ func (s *NotificationServiceV2) Send(ctx context.Context, notif *models.Notifica
 	// Update status based on result
 	if err != nil {
 		errMsg := err.Error()
-		s.repo.UpdateStatus(ctx, notif.ID, models.StatusFailed, &errMsg)
+		s.repo.UpdateStatus(ctx, notif.ID, models.StatusFailed, &errMsg) // notif.ID is int
 		return err
 	}
 
-	s.repo.UpdateStatus(ctx, notif.ID, models.StatusSent, nil)
+	s.repo.UpdateStatus(ctx, notif.ID, models.StatusSent, nil) // notif.ID is int
 	return nil
 }
 
 // sendEmail sends an email notification
 func (s *NotificationServiceV2) sendEmail(ctx context.Context, notif *models.Notification) error {
 	// TODO: Integrate with email service (SendGrid, AWS SES, etc.)
-	log.Printf("Sending email to %s: %s", notif.Recipient, notif.Message)
+	log.Printf("Sending email to %s", notif.Recipient) // Removed %s and added just recipient
+	if notif.Subject != nil {
+		log.Printf("Subject: %s", *notif.Subject) // Removed %s and added just subject
+	}
+	log.Printf("Message: %s", notif.Message) // Removed %s and added just message
 
 	// For now, just log the email
 	// In production, you would call an email provider API here
@@ -103,7 +107,7 @@ func (s *NotificationServiceV2) sendEmail(ctx context.Context, notif *models.Not
 // sendSMS sends an SMS notification
 func (s *NotificationServiceV2) sendSMS(ctx context.Context, notif *models.Notification) error {
 	// TODO: Integrate with SMS service (Twilio, Termii, etc.)
-	log.Printf("Sending SMS to %s: %s", notif.Recipient, notif.Message)
+	log.Printf("Sending SMS to %s", notif.Recipient) // Removed %s and added just recipient
 
 	// For now, just log the SMS
 	// In production, you would call an SMS provider API here
@@ -116,7 +120,7 @@ func (s *NotificationServiceV2) sendSMS(ctx context.Context, notif *models.Notif
 // sendPush sends a push notification
 func (s *NotificationServiceV2) sendPush(ctx context.Context, notif *models.Notification) error {
 	// TODO: Integrate with push notification service (Firebase, OneSignal, etc.)
-	log.Printf("Sending push notification to %s: %s", notif.Recipient, notif.Message)
+	log.Printf("Sending push notification to %s", notif.Recipient) // Removed %s and added just recipient
 
 	// For now, just log the push notification
 	// In production, you would call a push notification provider API here
@@ -132,7 +136,7 @@ func (s *NotificationServiceV2) sendPush(ctx context.Context, notif *models.Noti
 // SendTransactionNotification sends a transaction-related notification
 func (s *NotificationServiceV2) SendTransactionNotification(
 	ctx context.Context,
-	merchantID string,
+	merchantID int, // int
 	recipient string,
 	amount int64,
 	currency string,
@@ -145,7 +149,7 @@ func (s *NotificationServiceV2) SendTransactionNotification(
 	)
 
 	notif := &models.Notification{
-		MerchantID: &merchantID,
+		MerchantID: &merchantID, // &int
 		Type:       models.TypeEmail,
 		Channel:    models.ChannelTransaction,
 		Recipient:  recipient,
@@ -159,7 +163,7 @@ func (s *NotificationServiceV2) SendTransactionNotification(
 // SendPayoutNotification sends a payout-related notification
 func (s *NotificationServiceV2) SendPayoutNotification(
 	ctx context.Context,
-	merchantID string,
+	merchantID int, // int
 	recipient string,
 	amount int64,
 	currency string,
@@ -172,7 +176,7 @@ func (s *NotificationServiceV2) SendPayoutNotification(
 	)
 
 	notif := &models.Notification{
-		MerchantID: &merchantID,
+		MerchantID: &merchantID, // &int
 		Type:       models.TypeEmail,
 		Channel:    models.ChannelPayout,
 		Recipient:  recipient,
