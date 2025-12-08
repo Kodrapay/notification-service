@@ -42,8 +42,8 @@ func (s *OTPService) Generate(ctx context.Context, req *models.CreateOTPRequest)
 
 	// Create OTP record
 	otp := &models.OTP{
-		MerchantID:     req.MerchantID,
-		UserID:         req.UserID,
+		MerchantID:     req.MerchantID, // int
+		UserID:         req.UserID,     // *int
 		Purpose:        req.Purpose,
 		Code:           code,
 		Recipient:      req.Recipient,
@@ -51,7 +51,7 @@ func (s *OTPService) Generate(ctx context.Context, req *models.CreateOTPRequest)
 		ExpiresAt:      time.Now().Add(time.Duration(req.ExpiryMinutes) * time.Minute),
 		Attempts:       0,
 		MaxAttempts:    req.MaxAttempts,
-		ReferenceID:    req.ReferenceID,
+		ReferenceID:    req.ReferenceID, // *int
 		Metadata:       req.Metadata,
 	}
 
@@ -90,14 +90,14 @@ func (s *OTPService) Verify(ctx context.Context, req *models.VerifyOTPRequest) (
 	err = otp.Verify(req.Code)
 
 	// Update attempts count
-	s.otpRepo.UpdateAttempts(ctx, otp.ID, otp.Attempts)
+	s.otpRepo.UpdateAttempts(ctx, otp.ID, otp.Attempts) // otp.ID is int
 
 	if err != nil {
 		return nil, err
 	}
 
 	// Mark as verified
-	if err := s.otpRepo.MarkAsVerified(ctx, otp.ID); err != nil {
+	if err := s.otpRepo.MarkAsVerified(ctx, otp.ID); err != nil { // otp.ID is int
 		return nil, fmt.Errorf("failed to mark OTP as verified: %w", err)
 	}
 
@@ -108,7 +108,7 @@ func (s *OTPService) Verify(ctx context.Context, req *models.VerifyOTPRequest) (
 func (s *OTPService) Resend(ctx context.Context, req *models.CreateOTPRequest) (*models.OTP, error) {
 	// Invalidate existing OTPs for this reference
 	if req.ReferenceID != nil {
-		s.otpRepo.InvalidateByReferenceID(ctx, req.MerchantID, req.Purpose, *req.ReferenceID)
+		s.otpRepo.InvalidateByReferenceID(ctx, req.MerchantID, req.Purpose, *req.ReferenceID) // req.MerchantID is int, *req.ReferenceID is int
 	}
 
 	// Generate new OTP

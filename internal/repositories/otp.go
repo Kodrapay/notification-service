@@ -30,12 +30,24 @@ func (r *OTPRepository) Create(ctx context.Context, otp *models.OTP) error {
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
 		RETURNING id, created_at
 	`
+	var userID sql.NullInt32
+	if otp.UserID != nil {
+		userID.Int32 = int32(*otp.UserID)
+		userID.Valid = true
+	}
+	var referenceID sql.NullInt32
+	if otp.ReferenceID != nil {
+		referenceID.Int32 = int32(*otp.ReferenceID)
+		referenceID.Valid = true
+	}
 
 	err := r.db.QueryRowContext(
 		ctx, query,
-		otp.MerchantID, otp.UserID, otp.Purpose, otp.Code,
+		otp.MerchantID,
+		userID,
+		otp.Purpose, otp.Code,
 		otp.Recipient, otp.DeliveryMethod, otp.ExpiresAt,
-		otp.Attempts, otp.MaxAttempts, otp.ReferenceID, metadataJSON,
+		otp.Attempts, otp.MaxAttempts, referenceID, metadataJSON,
 	).Scan(&otp.ID, &otp.CreatedAt)
 
 	if err != nil {
@@ -48,7 +60,7 @@ func (r *OTPRepository) Create(ctx context.Context, otp *models.OTP) error {
 // GetByCode retrieves an OTP by code for verification
 func (r *OTPRepository) GetByCode(
 	ctx context.Context,
-	merchantID string,
+	merchantID int,
 	purpose models.OTPPurpose,
 	code string,
 ) (*models.OTP, error) {
@@ -67,12 +79,14 @@ func (r *OTPRepository) GetByCode(
 
 	var otp models.OTP
 	var metadataJSON []byte
+	var userID sql.NullInt32
+	var referenceID sql.NullInt32
 
 	err := r.db.QueryRowContext(ctx, query, merchantID, purpose, code).Scan(
-		&otp.ID, &otp.MerchantID, &otp.UserID, &otp.Purpose,
+		&otp.ID, &otp.MerchantID, &userID, &otp.Purpose,
 		&otp.Code, &otp.Recipient, &otp.DeliveryMethod,
 		&otp.ExpiresAt, &otp.VerifiedAt, &otp.Attempts,
-		&otp.MaxAttempts, &otp.ReferenceID, &metadataJSON, &otp.CreatedAt,
+		&otp.MaxAttempts, &referenceID, &metadataJSON, &otp.CreatedAt,
 	)
 
 	if err == sql.ErrNoRows {
@@ -86,6 +100,14 @@ func (r *OTPRepository) GetByCode(
 	if len(metadataJSON) > 0 {
 		json.Unmarshal(metadataJSON, &otp.Metadata)
 	}
+	if userID.Valid {
+		val := int(userID.Int32)
+		otp.UserID = &val
+	}
+	if referenceID.Valid {
+		val := int(referenceID.Int32)
+		otp.ReferenceID = &val
+	}
 
 	return &otp, nil
 }
@@ -93,9 +115,9 @@ func (r *OTPRepository) GetByCode(
 // GetByReferenceID retrieves the latest OTP by reference ID
 func (r *OTPRepository) GetByReferenceID(
 	ctx context.Context,
-	merchantID string,
+	merchantID int,
 	purpose models.OTPPurpose,
-	referenceID string,
+	referenceID int,
 ) (*models.OTP, error) {
 	query := `
 		SELECT id, merchant_id, user_id, purpose, code, recipient,
@@ -111,12 +133,14 @@ func (r *OTPRepository) GetByReferenceID(
 
 	var otp models.OTP
 	var metadataJSON []byte
+	var userID sql.NullInt32
+	var scannedReferenceID sql.NullInt32
 
 	err := r.db.QueryRowContext(ctx, query, merchantID, purpose, referenceID).Scan(
-		&otp.ID, &otp.MerchantID, &otp.UserID, &otp.Purpose,
+		&otp.ID, &otp.MerchantID, &userID, &otp.Purpose,
 		&otp.Code, &otp.Recipient, &otp.DeliveryMethod,
 		&otp.ExpiresAt, &otp.VerifiedAt, &otp.Attempts,
-		&otp.MaxAttempts, &otp.ReferenceID, &metadataJSON, &otp.CreatedAt,
+		&otp.MaxAttempts, &scannedReferenceID, &metadataJSON, &otp.CreatedAt,
 	)
 
 	if err == sql.ErrNoRows {
@@ -130,12 +154,20 @@ func (r *OTPRepository) GetByReferenceID(
 	if len(metadataJSON) > 0 {
 		json.Unmarshal(metadataJSON, &otp.Metadata)
 	}
+	if userID.Valid {
+		val := int(userID.Int32)
+		otp.UserID = &val
+	}
+	if scannedReferenceID.Valid {
+		val := int(scannedReferenceID.Int32) // Corrected from Int33 to Int32
+		otp.ReferenceID = &val
+	}
 
 	return &otp, nil
 }
 
 // UpdateAttempts increments the verification attempts counter
-func (r *OTPRepository) UpdateAttempts(ctx context.Context, id string, attempts int) error {
+func (r *OTPRepository) UpdateAttempts(ctx context.Context, id int, attempts int) error {
 	query := `
 		UPDATE otps SET
 			attempts = $2
@@ -151,7 +183,7 @@ func (r *OTPRepository) UpdateAttempts(ctx context.Context, id string, attempts 
 }
 
 // MarkAsVerified marks an OTP as verified
-func (r *OTPRepository) MarkAsVerified(ctx context.Context, id string) error {
+func (r *OTPRepository) MarkAsVerified(ctx context.Context, id int) error {
 	query := `
 		UPDATE otps SET
 			verified_at = NOW()
@@ -189,9 +221,9 @@ func (r *OTPRepository) CleanupExpired(ctx context.Context, olderThan time.Durat
 // InvalidateByReferenceID invalidates all OTPs for a reference ID
 func (r *OTPRepository) InvalidateByReferenceID(
 	ctx context.Context,
-	merchantID string,
+	merchantID int,
 	purpose models.OTPPurpose,
-	referenceID string,
+	referenceID int,
 ) error {
 	query := `
 		UPDATE otps SET

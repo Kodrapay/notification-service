@@ -22,9 +22,9 @@ const (
 )
 
 type OTP struct {
-	ID             string                 `json:"id" db:"id"`
-	MerchantID     string                 `json:"merchant_id" db:"merchant_id"`
-	UserID         *string                `json:"user_id,omitempty" db:"user_id"`
+	ID             int                    `json:"id" db:"id"`
+	MerchantID     int                    `json:"merchant_id" db:"merchant_id"`
+	UserID         *int                   `json:"user_id,omitempty" db:"user_id"`
 	Purpose        OTPPurpose             `json:"purpose" db:"purpose"`
 	Code           string                 `json:"code" db:"code"`
 	Recipient      string                 `json:"recipient" db:"recipient"`
@@ -33,7 +33,7 @@ type OTP struct {
 	VerifiedAt     *time.Time             `json:"verified_at,omitempty" db:"verified_at"`
 	Attempts       int                    `json:"attempts" db:"attempts"`
 	MaxAttempts    int                    `json:"max_attempts" db:"max_attempts"`
-	ReferenceID    *string                `json:"reference_id,omitempty" db:"reference_id"`
+	ReferenceID    *int                   `json:"reference_id,omitempty" db:"reference_id"`
 	Metadata       map[string]interface{} `json:"metadata,omitempty" db:"metadata"`
 	CreatedAt      time.Time              `json:"created_at" db:"created_at"`
 }
@@ -99,21 +99,21 @@ func (o *OTP) Verify(code string) error {
 
 // CreateOTPRequest represents a request to create an OTP
 type CreateOTPRequest struct {
-	MerchantID      string                 `json:"merchant_id"`
-	UserID          *string                `json:"user_id,omitempty"`
+	MerchantID      int                    `json:"merchant_id"`
+	UserID          *int                   `json:"user_id,omitempty"`
 	Purpose         OTPPurpose             `json:"purpose"`
 	Recipient       string                 `json:"recipient"`
 	DeliveryMethod  OTPDeliveryMethod      `json:"delivery_method"`
 	ExpiryMinutes   int                    `json:"expiry_minutes"` // Default: 10 minutes
 	MaxAttempts     int                    `json:"max_attempts"`   // Default: 3
-	ReferenceID     *string                `json:"reference_id,omitempty"`
+	ReferenceID     *int                   `json:"reference_id,omitempty"`
 	Metadata        map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // VerifyOTPRequest represents a request to verify an OTP
 type VerifyOTPRequest struct {
-	MerchantID  string     `json:"merchant_id"`
+	MerchantID  int        `json:"merchant_id"`
 	Purpose     OTPPurpose `json:"purpose"`
 	Code        string     `json:"code"`
-	ReferenceID *string    `json:"reference_id,omitempty"`
+	ReferenceID *int       `json:"reference_id,omitempty"`
 }

@@ -26,9 +26,9 @@ const (
 )
 
 type Notification struct {
-	ID           string                 `json:"id" db:"id"`
-	MerchantID   *string                `json:"merchant_id,omitempty" db:"merchant_id"`
-	UserID       *string                `json:"user_id,omitempty" db:"user_id"`
+	ID           int                    `json:"id" db:"id"`
+	MerchantID   *int                   `json:"merchant_id,omitempty" db:"merchant_id"`
+	UserID       *int                   `json:"user_id,omitempty" db:"user_id"`
 	Type         NotificationType       `json:"type" db:"type"`
 	Channel      NotificationChannel    `json:"channel" db:"channel"`
 	Recipient    string                 `json:"recipient" db:"recipient"`
@@ -46,8 +46,8 @@ type Notification struct {
 }
 
 type NotificationPreferences struct {
-	ID                       string     `json:"id" db:"id"`
-	MerchantID               string     `json:"merchant_id" db:"merchant_id"`
+	ID                       int        `json:"id" db:"id"`
+	MerchantID               int        `json:"merchant_id" db:"merchant_id"`
 	EmailEnabled             bool       `json:"email_enabled" db:"email_enabled"`
 	SMSEnabled               bool       `json:"sms_enabled" db:"sms_enabled"`
 	PushEnabled              bool       `json:"push_enabled" db:"push_enabled"`
