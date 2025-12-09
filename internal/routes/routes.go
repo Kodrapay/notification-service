@@ -20,11 +20,25 @@ func Register(app *fiber.App, serviceName string) {
 		panic(err)
 	}
 
+	// Notification service
 	notifSvc := services.NewNotificationService(repo)
 	notifHandler := handlers.NewNotificationHandler(notifSvc)
 
+	// OTP service
+	otpRepo := repositories.NewOTPRepository(repo.DB())
+	prefsRepo := repositories.NewNotificationPreferencesRepository(repo.DB())
+	notifSvcV2 := services.NewNotificationServiceV2(repo, prefsRepo)
+	otpSvc := services.NewOTPService(otpRepo, notifSvcV2)
+	otpHandler := handlers.NewOTPHandler(otpSvc)
+
+	// Notification routes
 	app.Post("/notifications", notifHandler.Send)
 	app.Get("/notifications/:id", notifHandler.Get)
 	app.Get("/notifications/user/:userID", notifHandler.ListByUserID)
 	app.Get("/notifications/merchant/:merchantID", notifHandler.ListByMerchantID)
+
+	// OTP routes
+	app.Post("/otp/generate", otpHandler.Generate)
+	app.Post("/otp/verify", otpHandler.Verify)
+	app.Post("/otp/resend", otpHandler.Resend)
 }

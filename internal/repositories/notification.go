@@ -31,6 +31,11 @@ func NewNotificationRepository(dsn string) (*NotificationRepository, error) {
 	return &NotificationRepository{db: db}, nil
 }
 
+// DB returns the underlying database connection
+func (r *NotificationRepository) DB() *sql.DB {
+	return r.db
+}
+
 // Create inserts a new notification
 func (r *NotificationRepository) Create(ctx context.Context, notif *models.Notification) error {
 	templateDataJSON, _ := json.Marshal(notif.TemplateData)
